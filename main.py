@@ -21,7 +21,7 @@ client = boto3.client('s3',
                       )
 
 database = MovieDatabase()
-folder_location = os.getenv('FOLDER_LOCATION')
+FOLDER_LOCATION = os.getenv('FOLDER_LOCATION')
 
 
 # for detecting file
@@ -50,7 +50,7 @@ def random_delay(time_list):
 
 def write_movies():
     # 開新檔案寫入
-    with open(f'{file_name}.csv', encoding='UTF-8') as movies:
+    with open(f'{FOLDER_LOCATION}{file_name}.csv', encoding='UTF-8') as movies:
         rows = csv.reader(movies)
         for row in rows:
             title = row[0]
@@ -136,10 +136,10 @@ def write_movies():
 
 
 if __name__ == "__main__":
-    all_files = os.listdir(folder_location)
+    all_files = os.listdir(FOLDER_LOCATION)
     for f in all_files:
         current_file_name = os.path.basename(f)
-        target_file = f'{ok_file}.csv'
+        target_file = f'{FOLDER_LOCATION}{ok_file}.csv'
         if current_file_name == target_file:
             write_movies()
         if f.endswith('.csv'):
