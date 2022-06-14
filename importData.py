@@ -27,7 +27,7 @@ class MovieDatabase:
             cursor.execute('SELECT movie_id FROM movies_info \n'
                            'WHERE title = %s\n'
                            'AND year = %s', (title, year))
-            movie_exist = cursor.fetchone()
+            movie_exist = cursor.fetchall()
             if movie_exist:
                 movie_exist = True
             else:
@@ -35,7 +35,6 @@ class MovieDatabase:
         except Exception as e:
             print(e)
         else:
-            connection.commit()
             return movie_exist
         finally:
             cursor.close()
@@ -112,13 +111,16 @@ class MovieDatabase:
         connection = p.get_connection()
         cursor = connection.cursor()
         try:
+            print('1')
             cursor.execute('SELECT actor_id FROM actors WHERE name = %s', (actor,))
             actor_id = cursor.fetchone()
             if actor_id is not None:
                 actor_id = actor_id[0]
             else:
+                print('2')
                 cursor.execute('INSERT INTO actors(actor_id, name) '
-                               'VALUES(DEFAULT,%s', (actor,))
+                               'VALUES(DEFAULT,%s)', (actor,))
+                print(3)
                 cursor.execute('SELECT LAST_INSERT_ID()')
                 actor_id = cursor.fetchone()[0]
         except Exception as e:

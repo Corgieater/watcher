@@ -8,6 +8,7 @@ import ast
 import os.path
 import time
 from datetime import datetime
+import sys
 
 load_dotenv()
 
@@ -59,11 +60,22 @@ def write_movies():
             tagline = row[3]
             genres = row[4]
             directors = row[5]
-            directors = ast.literal_eval(directors)
+            try:
+                directors = ast.literal_eval(directors)
+            except Exception as e1:
+                continue
             actors = row[6]
-            actors = ast.literal_eval(actors)
+            try:
+                actors = ast.literal_eval(actors)
+            except Exception as e2:
+                continue
             poster_url = row[7]
-            genres = ast.literal_eval(genres)
+
+            try:
+                genres = ast.literal_eval(genres)
+            except Exception as e3:
+                continue
+
             genres_num_list = []
 
             # 把已存在的genre換成mysql id
@@ -114,8 +126,13 @@ def write_movies():
                     case _:
                         genre_id = database.add_genre_to_database(genre)
                         genres_num_list.append(genre_id)
+            try:
+                movie_exist = database.check_movie_exist(title, year)
+            except Exception as e4:
+                with open(f'{FOLDER_LOCATION}{file_name}_exist_error.txt', 'w', newline='', encoding='utf8') \
+                        as exist_f:
+                    exist_f.write(str(e4))
 
-            movie_exist = database.check_movie_exist(title, year)
             print('movie exist', movie_exist)
             # 電影沒在資料庫就寫入
             if not movie_exist:
@@ -126,7 +143,7 @@ def write_movies():
                     director_id = database.find_or_add_director_to_database(director)
                     database.add_directors_movies_relationship(director_id, movie_id)
                 for actor in actors:
-                    actor_id = database.find_or_add_director_to_database(actor)
+                    actor_id = database.find_or_add_actor_to_database(actor)
                     database.add_actor_movies_relationship(actor_id, movie_id)
                 upload_poster(poster_url, movie_id)
                 print(title, ' complete')
@@ -136,19 +153,35 @@ def write_movies():
 
 
 if __name__ == "__main__":
-    all_files = os.listdir(FOLDER_LOCATION)
-    for f in all_files:
-        current_file_name = os.path.basename(f)
-        target_file = f'{FOLDER_LOCATION}{ok_file}.csv'
-        if current_file_name == target_file:
-            write_movies()
-        if f.endswith('.csv'):
-            file_second = os.path.getctime(f)
-            file_date = datetime.fromtimestamp(file_second)
-            now = datetime.now()
-            # 檔案超過一週就刪除
-            if (file_date - now).days > 7:
+    # is there is a success_file means this process had already finished
+    success_file = f'{FOLDER_LOCATION}{file_name}_success.txt'
+    already_in_data = os.path.isfile(success_file)
+    if already_in_data:
+        sys.exit()
+    else:
+        all_files = os.listdir(FOLDER_LOCATION)
+
+        for f in all_files:
+            f = f'{FOLDER_LOCATION}{f}'
+            current_file_name = os.path.basename(f)
+            target_file = f'{FOLDER_LOCATION}{ok_file}.csv'
+            if f.endswith('.csv'):
+                file_second = os.path.getctime(f)
+                file_date = datetime.fromtimestamp(file_second)
+                now = datetime.now()
+                # 檔案超過一週就刪除
+                if (file_date - now).days > 7:
+                    os.remove(f)
+            # 刪掉沒用的圖片
+            if f.endswith('.jpg'):
                 os.remove(f)
-        # 刪掉沒用的圖片
-        if f.endswith('.jpg'):
-            os.remove(f)
+
+            if f == target_file:
+                try:
+                    write_movies()
+                except Exception as e:
+                    with open(f'{FOLDER_LOCATION}{file_name}_error.txt', 'w', newline='', encoding='utf8') as error_f:
+                        error_f.write(str(e))
+                else:
+                    with open(f'{FOLDER_LOCATION}{file_name}_success.txt', 'w', newline='', encoding='utf8') as success_f:
+                        success_f.write('good')
