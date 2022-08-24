@@ -1,4 +1,3 @@
-import csv
 from importData import *
 import boto3
 import requests
@@ -15,6 +14,7 @@ load_dotenv()
 AWS_KEY = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 AWS_BUCKET = os.getenv('BUCKET')
+FOLDER_LOCATION = os.getenv('FOLDER_LOCATION')
 
 client = boto3.client('s3',
                       aws_access_key_id=AWS_KEY,
@@ -22,7 +22,6 @@ client = boto3.client('s3',
                       )
 
 database = MovieDatabase()
-FOLDER_LOCATION = os.getenv('FOLDER_LOCATION')
 
 
 # for detecting file
@@ -123,8 +122,17 @@ def write_movies():
                         genres_num_list.append(20)
                     case 'Sport':
                         genres_num_list.append(21)
+                    case 'Reality-Tv':
+                        genres_num_list.append(22)
+                    case 'Talk-Show':
+                        genres_num_list.append(25)
+                    case 'Game-Show':
+                        genres_num_list.append(27)
+                    case 'Adult':
+                        genres_num_list.append(45)
+
                     case _:
-                        genre_id = database.add_genre_to_database(genre)
+                        genre_id = database.find_or_add_genre_to_database(genre)
                         genres_num_list.append(genre_id)
             try:
                 movie_exist = database.check_movie_exist(title, year)
@@ -133,7 +141,6 @@ def write_movies():
                         as exist_f:
                     exist_f.write(str(e4))
 
-            print('movie exist', movie_exist)
             # 電影沒在資料庫就寫入
             if not movie_exist:
                 movie_id = database.add_movie_to_database(title, year, plot, tagline)
@@ -146,14 +153,12 @@ def write_movies():
                     actor_id = database.find_or_add_actor_to_database(actor)
                     database.add_actor_movies_relationship(actor_id, movie_id)
                 upload_poster(poster_url, movie_id)
-                print(title, ' complete')
             else:
-                print(title, 'skipped')
                 continue
 
 
 if __name__ == "__main__":
-    # is there is a success_file means this process had already finished
+    # if there is a success_file means this process had already finished
     success_file = f'{FOLDER_LOCATION}{file_name}_success.txt'
     already_in_data = os.path.isfile(success_file)
     if already_in_data:

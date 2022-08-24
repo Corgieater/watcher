@@ -1,12 +1,19 @@
 from dotenv import load_dotenv
 from mysql.connector import pooling
 import os
+from datetime import datetime
+import csv
 
 load_dotenv()
 MYSQL_HOST = os.getenv('MYSQL_HOST')
 MYSQL_USER = os.getenv('MYSQL_USER')
 MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD')
 MYSQL_DATABASE = 'movie_web'
+FOLDER_LOCATION = os.getenv('FOLDER_LOCATION')
+
+today = datetime.today()
+date = today.strftime("%Y-%m-%d")
+file_name = f'movie_{date}'
 
 p = pooling.MySQLConnectionPool(
             pool_name='pool',
@@ -49,7 +56,10 @@ class MovieDatabase:
             cursor.execute('SELECT LAST_INSERT_ID()')
             last_insert_movie_id = cursor.fetchone()[0]
         except Exception as e:
-            print(e)
+            with open(f'{FOLDER_LOCATION}{file_name}_movie_adding_error.csv', 'w', newline='', encoding='utf8') \
+                    as f:
+                writer = csv.writer(f)
+                writer.writerow([str(e), title])
             connection.rollback()
             return False
         else:
@@ -60,22 +70,30 @@ class MovieDatabase:
             connection.close()
 
     # GENRE添加
-    def add_genre_to_database(self, genre):
+    def find_or_add_genre_to_database(self, genre):
         connection = p.get_connection()
         cursor = connection.cursor()
         try:
-            cursor.execute('')
-            cursor.execute('INSERT INTO genres(genre_id, type) '
-                           'VALUES(DEFAULT,%s)', (genre,))
-            cursor.execute('SELECT LAST_INSERT_ID()')
-            last_insert_genre_id = cursor.fetchone()[0]
+            cursor.execute('SELECT genre_id FROM genres WHERE type = %s,', (genre,))
+            genre_id = cursor.fetchone()
+            if genre_id is not None:
+                genre_id = genre_id[0]
+            else:
+                cursor.execute('INSERT INTO genres(genre_id, type) '
+                               'VALUES(DEFAULT,%s)', (genre,))
+                cursor.execute('SELECT LAST_INSERT_ID()')
+                genre_id = cursor.fetchone()[0]
         except Exception as e:
             print(e)
+            with open(f'{FOLDER_LOCATION}{file_name}_genre_adding_error.csv', 'w', newline='', encoding='utf8') \
+                    as f:
+                writer = csv.writer(f)
+                writer.writerow([str(e), genre])
             connection.rollback()
             return False
         else:
             connection.commit()
-            return last_insert_genre_id
+            return genre_id
         finally:
             cursor.close()
             connection.close()
@@ -97,6 +115,10 @@ class MovieDatabase:
 
         except Exception as e:
             print(e)
+            with open(f'{FOLDER_LOCATION}{file_name}_director_adding_error.csv', 'w', newline='', encoding='utf8') \
+                    as f:
+                writer = csv.writer(f)
+                writer.writerow([str(e), director])
             connection.rollback()
             return False
         else:
@@ -111,20 +133,21 @@ class MovieDatabase:
         connection = p.get_connection()
         cursor = connection.cursor()
         try:
-            print('1')
-            cursor.execute('SELECT actor_id FROM actors WHERE name = %s', (actor,))
+            cursor.execute('SELECT actor_id, name FROM actors WHERE name = %s', (actor,))
             actor_id = cursor.fetchone()
             if actor_id is not None:
                 actor_id = actor_id[0]
             else:
-                print('2')
                 cursor.execute('INSERT INTO actors(actor_id, name) '
                                'VALUES(DEFAULT,%s)', (actor,))
-                print(3)
                 cursor.execute('SELECT LAST_INSERT_ID()')
                 actor_id = cursor.fetchone()[0]
         except Exception as e:
             print(e)
+            with open(f'{FOLDER_LOCATION}{file_name}_actor_adding_error.csv', 'w', newline='', encoding='utf8') \
+                    as f:
+                writer = csv.writer(f)
+                writer.writerow([str(e), actor])
             connection.rollback()
             return False
         else:
@@ -143,6 +166,11 @@ class MovieDatabase:
                            'VALUES(DEFAULT, %s, %s)', (director_id, movie_id))
         except Exception as e:
             print(e)
+            with open(f'{FOLDER_LOCATION}{file_name}_directorMovies_adding_error.csv', 'w',
+                      newline='', encoding='utf8') \
+                    as f:
+                writer = csv.writer(f)
+                writer.writerow([str(e), director_id, movie_id])
             connection.rollback()
             return False
         else:
@@ -161,6 +189,11 @@ class MovieDatabase:
                            'VALUES(DEFAULT, %s, %s)', (genre_id, movie_id))
         except Exception as e:
             print(e)
+            with open(f'{FOLDER_LOCATION}{file_name}_genreMovies_adding_error.csv', 'w',
+                      newline='', encoding='utf8') \
+                    as f:
+                writer = csv.writer(f)
+                writer.writerow([str(e), genre_id, movie_id])
             connection.rollback()
             return False
         else:
@@ -179,6 +212,11 @@ class MovieDatabase:
                            'VALUES(DEFAULT, %s, %s)', (actor_id, movie_id))
         except Exception as e:
             print(e)
+            with open(f'{FOLDER_LOCATION}{file_name}_actorMovies_adding_error.csv', 'w',
+                      newline='', encoding='utf8') \
+                    as f:
+                writer = csv.writer(f)
+                writer.writerow([str(e), actor_id, movie_id])
             connection.rollback()
             return False
         else:
@@ -188,36 +226,4 @@ class MovieDatabase:
             cursor.close()
             connection.close()
 
-    # 多功能搜尋
-    def find_input_from_table(self, id_type, table, column, input_content):
-        connection = p.get_connection()
-        cursor = connection.cursor()
-        try:
-            cursor.execute(f'SELECT {id_type} FROM {table} WHERE {column} = %s', (input_content,))
-            returned_id = cursor.fetchone()[0]
-        except Exception as e:
-            print(e)
-            return False
-        else:
-            return returned_id
-        finally:
-            cursor.close()
-            connection.close()
 
-
-    def check_last_movie_id(self):
-        connection = p.get_connection()
-        cursor = connection.cursor()
-        try:
-            cursor.execute('SELECT id FROM movies_info ORDER BY id DESC LIMIT 1')
-            result = cursor.fetchone()
-            if result is None:
-                return None
-        except Exception as e:
-            print(e)
-            return False
-        else:
-            return result
-        finally:
-            cursor.close()
-            connection.close()
